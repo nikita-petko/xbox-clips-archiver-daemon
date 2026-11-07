@@ -8,8 +8,8 @@ import (
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbox/models"
 )
 
-// GetDVRScreenshots retrieves a list of DVR screenshots for the authenticated user using the provided API key.
-func GetDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
+// getDVRScreenshots retrieves a list of DVR screenshots for the authenticated user using the provided API key.
+func getDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
 	continuationToken := ""
 	screenshots := make([]*models.Screenshot, 0)
 
@@ -42,8 +42,8 @@ func GetDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
 	return screenshots, nil
 }
 
-// GetDVRGameClips retrieves a list of DVR game clips for the authenticated user using the provided API key.
-func GetDVRGameClips(apiKey string) ([]*models.GameClip, error) {
+// getDVRGameClips retrieves a list of DVR game clips for the authenticated user using the provided API key.
+func getDVRGameClips(apiKey string) ([]*models.GameClip, error) {
 	continuationToken := ""
 	gameClips := make([]*models.GameClip, 0)
 
@@ -74,4 +74,37 @@ func GetDVRGameClips(apiKey string) ([]*models.GameClip, error) {
 	}
 
 	return gameClips, nil
+}
+
+// GetDVRMedia retrieves a combined list of DVR media (screenshots and game clips) for the authenticated user using the provided API key.
+func GetDVRMedia(apiKey string) ([]*models.Media, error) {
+	screenshots, err := getDVRScreenshots(apiKey)
+	if err != nil {
+		return nil, err
+	}
+
+	gameClips, err := getDVRGameClips(apiKey)
+	if err != nil {
+		return nil, err
+	}
+
+	media := make([]*models.Media, 0, len(screenshots)+len(gameClips))
+	for _, s := range screenshots {
+		media = append(media, &models.Media{
+			Id:        s.ScreenshotId,
+			TitleId:   s.TitleId,
+			TitleName: s.TitleName,
+			MediaUris: s.ScreenshotUris,
+		})
+	}
+	for _, g := range gameClips {
+		media = append(media, &models.Media{
+			Id:        g.GameClipId,
+			TitleId:   g.TitleId,
+			TitleName: g.TitleName,
+			MediaUris: g.GameClipUris,
+		})
+	}
+
+	return media, nil
 }
