@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbox/models"
 )
@@ -90,18 +91,36 @@ func GetDVRMedia(apiKey string) ([]*models.Media, error) {
 
 	media := make([]*models.Media, 0, len(screenshots)+len(gameClips))
 	for _, s := range screenshots {
+		taken := &time.Time{}
+		if s.DateTaken != "" {
+			parsedTime, err := time.Parse(time.RFC3339, s.DateTaken)
+			if err == nil {
+				taken = &parsedTime
+			}
+		}
+
 		media = append(media, &models.Media{
 			Id:        s.ScreenshotId,
 			TitleId:   s.TitleId,
 			TitleName: s.TitleName,
+			CreatedAt: taken,
 			MediaUris: s.ScreenshotUris,
 		})
 	}
 	for _, g := range gameClips {
+		recorded := &time.Time{}
+		if g.DateRecorded != "" {
+			parsedTime, err := time.Parse(time.RFC3339, g.DateRecorded)
+			if err == nil {
+				recorded = &parsedTime
+			}
+		}
+
 		media = append(media, &models.Media{
 			Id:        g.GameClipId,
 			TitleId:   g.TitleId,
 			TitleName: g.TitleName,
+			CreatedAt: recorded,
 			MediaUris: g.GameClipUris,
 		})
 	}
