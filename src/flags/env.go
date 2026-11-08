@@ -3,6 +3,10 @@ package flags
 func applyEnvironmentVariableFlags() {
 	getEnvironmentVariableOrFlag("INTERVAL", Interval)
 
+	getEnvironmentVariableOrFlag("CACHE_PATH", CachePath)
+	getEnvironmentVariableOrFlag("CLEAR_CACHE", ClearCache)
+	getEnvironmentVariableOrFlag("SHOULD_LOCK_CACHE", ShouldLockCache)
+
 	getEnvironmentVariableOrFlag("SEND_GRID_API_KEY", SendGridApiKey)
 	getEnvironmentVariableOrFlag("SEND_GRID_FROM", SendGridFrom)
 	getEnvironmentVariableOrFlag("SEND_GRID_FROM_EMAIL", SendGridFromEmail)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/alerting"
+	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/cache"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/daemon"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/flags"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/http"
@@ -32,6 +33,7 @@ func main() {
 
 	http.Setup()
 	alerting.Setup()
+	cache.Setup()
 
 	if *flags.Pulse {
 		err := daemon.DoWork()

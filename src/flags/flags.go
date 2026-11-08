@@ -17,6 +17,15 @@ var (
 
 	//// Unique Flags
 
+	// CachePath is the path to the cache directory. Defaults to .cache. This is required. (environment variable: CACHE_PATH)
+	CachePath = flag.String("cache-path", ".cache", "The path to the cache directory. Defaults to .cache. This is required. (environment variable: CACHE_PATH)")
+
+	// ClearCache determines if the cache should be cleared before starting the daemon. (environment variable: CLEAR_CACHE)
+	ClearCache = flag.Bool("clear-cache", false, "Clear the cache before starting the daemon. (environment variable: CLEAR_CACHE)")
+
+	// ShouldLockCache determines if the cache should be locked before starting the daemon. (environment variable: SHOULD_LOCK_CACHE)
+	ShouldLockCache = flag.Bool("should-lock-cache", true, "Determines if the cache should be locked before starting the daemon. (environment variable: SHOULD_LOCK_CACHE)")
+
 	//// Alerting
 
 	// SendGridApiKey is the SendGrid API key. This is optional. (environment variable: SENDGRID_API_KEY)
@@ -47,6 +56,7 @@ var (
 // FlagUsageString is the usage string printed a longside the help command.
 const FlagsUsageString string = `
 	[-h|--help] [--interval[=5m]] [--pulse]
+	[--cache-path[=]] [--clear-cache[=false]]
 	[--url[=]] [--asset-prefix-override[=]] [--build-id-override[=]] [--fetch-mode[=pages]]
 	[--sendgrid-api-key[=]] [--sendgrid-from[=]] [--sendgrid-from-email[=]] [--sendgrid-mailing-list[=]]
 	[--sns-topic-arn[=]] [--aws-credentials-from-profile[=false]]
