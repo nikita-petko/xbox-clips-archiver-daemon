@@ -12,6 +12,7 @@ import (
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/daemon"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/flags"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/http"
+	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/s3"
 )
 
 var applicationName string
@@ -34,6 +35,7 @@ func main() {
 	http.Setup()
 	alerting.Setup()
 	cache.Setup()
+	s3.Setup()
 
 	if *flags.Pulse {
 		err := daemon.DoWork()

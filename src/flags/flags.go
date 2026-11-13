@@ -35,11 +35,11 @@ var (
 	// S3Region is the AWS region where the S3 bucket is located. Defaults to us-east-1. This is required. (environment variable: S3_REGION)
 	S3Region = flag.String("s3-region", "us-east-1", "The AWS region where the S3 bucket is located. Defaults to us-east-1. This is required. (environment variable: S3_REGION)")
 
-	// S3AccessKey is the AWS access key used for S3. This is optional. (environment variable: AWS_ACCESS_KEY)
-	S3AccessKey = flag.String("s3-access-key", "", "The AWS access key used for S3. This is optional. (environment variable: AWS_ACCESS_KEY)")
+	// S3AccessKey is the AWS access key used for S3. This is optional. (environment variable: S3_ACCESS_KEY)
+	S3AccessKey = flag.String("s3-access-key", "", "The AWS access key used for S3. This is optional. (environment variable: S3_ACCESS_KEY)")
 
-	// S3SecretAccessKey is the AWS secret access key used for S3. This is optional. (environment variable: AWS_SECRET_ACCESS_KEY)
-	S3SecretAccessKey = flag.String("s3-secret-access-key", "", "The AWS secret access key used for S3. This is optional. (environment variable: AWS_SECRET_ACCESS_KEY)")
+	// S3SecretAccessKey is the AWS secret access key used for S3. This is optional. (environment variable: S3_SECRET_ACCESS_KEY)
+	S3SecretAccessKey = flag.String("s3-secret-access-key", "", "The AWS secret access key used for S3. This is optional. (environment variable: S3_SECRET_ACCESS_KEY)")
 
 	//// Alerting
 
