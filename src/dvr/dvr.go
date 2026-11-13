@@ -1,4 +1,4 @@
-package xbox
+package dvr
 
 import (
 	"encoding/json"
@@ -6,8 +6,12 @@ import (
 	"io"
 	"time"
 
-	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbox/models"
+	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbl"
+	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbl/models"
 )
+
+const screenshotsEndpoint = "/v2/dvr/screenshots"
+const gameclipsEndpoint = "/v2/dvr/gameclips"
 
 // getDVRScreenshots retrieves a list of DVR screenshots for the authenticated user using the provided API key.
 func getDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
@@ -15,7 +19,7 @@ func getDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
 	screenshots := make([]*models.Screenshot, 0)
 
 	for {
-		httpResponse, newContinuationToken, err := makeApiCall(fmt.Sprintf("%s?continuationToken=%s", SCREENSHOTS_ENDPOINT, continuationToken), apiKey, true)
+		httpResponse, newContinuationToken, err := xbl.MakeApiCall(fmt.Sprintf("%s?continuationToken=%s", screenshotsEndpoint, continuationToken), apiKey, true)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +55,7 @@ func getDVRGameClips(apiKey string) ([]*models.GameClip, error) {
 	gameClips := make([]*models.GameClip, 0)
 
 	for {
-		httpResponse, newContinuationToken, err := makeApiCall(fmt.Sprintf("%s?continuationToken=%s", GAMECLIPS_ENDPOINT, continuationToken), apiKey, true)
+		httpResponse, newContinuationToken, err := xbl.MakeApiCall(fmt.Sprintf("%s?continuationToken=%s", gameclipsEndpoint, continuationToken), apiKey, true)
 		if err != nil {
 			return nil, err
 		}

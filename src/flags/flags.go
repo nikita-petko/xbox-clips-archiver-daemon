@@ -26,6 +26,9 @@ var (
 	// ShouldLockCache determines if the cache should be locked before starting the daemon. (environment variable: SHOULD_LOCK_CACHE)
 	ShouldLockCache = flag.Bool("should-lock-cache", true, "Determines if the cache should be locked before starting the daemon. (environment variable: SHOULD_LOCK_CACHE)")
 
+	// XblApiKeys is a comma-separated list of Xbox API keys. This is required. (environment variable: XBL_API_KEYS)
+	XblApiKeys = flag.String("xbl-api-keys", "", "A comma-separated list of Xbox API keys. This is required. (environment variable: XBL_API_KEYS)")
+
 	//// Alerting
 
 	// SendGridApiKey is the SendGrid API key. This is optional. (environment variable: SENDGRID_API_KEY)

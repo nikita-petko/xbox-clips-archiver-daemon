@@ -1,4 +1,4 @@
-package xbox
+package xbl
 
 import (
 	"encoding/json"
@@ -10,7 +10,8 @@ import (
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/http"
 )
 
-func makeApiCall(endpoint string, apiKey string, isPaged bool) (response *gohttp.Response, ct string, err error) {
+// MakeApiCall performs an HTTP GET request to the specified Xbox Live API endpoint using the provided API key.
+func MakeApiCall(endpoint string, apiKey string, isPaged bool) (response *gohttp.Response, continuationToken string, err error) {
 	uri, err := url.Parse(XBL_API_URL + endpoint)
 	if err != nil {
 		return nil, "", err

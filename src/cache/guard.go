@@ -40,7 +40,7 @@ func CacheGuardedHttpGet(userId, titleId, mediaId, url string) (*CacheGuard, err
 	glog.V(10000).Infof("Resolved cache path for User ID, Title ID, and Media ID: %s@%s@%s, resolved path: %s", userId, titleId, mediaId, resolvedPath)
 
 	if isCached(userId, titleId, mediaId) {
-		return nil, ErrExistsInCache
+		return &CacheGuard{filePath: resolvedPath}, ErrExistsInCache
 	}
 
 	// If the file is not cached or the ETag does not match, cache the response body to a file

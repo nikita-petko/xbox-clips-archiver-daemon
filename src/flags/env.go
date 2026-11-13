@@ -6,6 +6,7 @@ func applyEnvironmentVariableFlags() {
 	getEnvironmentVariableOrFlag("CACHE_PATH", CachePath)
 	getEnvironmentVariableOrFlag("CLEAR_CACHE", ClearCache)
 	getEnvironmentVariableOrFlag("SHOULD_LOCK_CACHE", ShouldLockCache)
+	getEnvironmentVariableOrFlag("XBL_API_KEYS", XblApiKeys)
 
 	getEnvironmentVariableOrFlag("SEND_GRID_API_KEY", SendGridApiKey)
 	getEnvironmentVariableOrFlag("SEND_GRID_FROM", SendGridFrom)
