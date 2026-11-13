@@ -1,6 +1,7 @@
 # xbox-clips-archiver-daemon
 
 [![Go Build](https://github.com/nikita-petko/xbox-clips-archiver-daemon/actions/workflows/build.yml/badge.svg)](https://github.com/nikita-petko/xbox-clips-archiver-daemon/actions/workflows/build.yml)
+[![Go Test](https://github.com/nikita-petko/xbox-clips-archiver-daemon/actions/workflows/test.yml/badge.svg)](https://github.com/nikita-petko/xbox-clips-archiver-daemon/actions/workflows/test.yml)
 [![Build Docker Image](https://github.com/nikita-petko/xbox-clips-archiver-daemon/actions/workflows/build-docker.yml/badge.svg)](https://github.com/nikita-petko/xbox-clips-archiver-daemon/actions/workflows/build-docker.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 

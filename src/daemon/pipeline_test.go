@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -43,6 +44,8 @@ func TestUserPipelinesAndAlerts(t *testing.T) {
 	firstStarted := make(chan struct{})
 	release := make(chan struct{})
 	var releaseOnce sync.Once
+	var requestsMu sync.Mutex
+	requests := make(map[string]int)
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -66,7 +69,26 @@ func TestUserPipelinesAndAlerts(t *testing.T) {
 			_, _ = w.Write([]byte(`{"content":{"gameClips":[]}}`))
 		case strings.HasPrefix(r.URL.Path, "/media/"):
 			_, _ = w.Write([]byte(r.URL.Path))
-		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/clips/"):
+		case r.Method == http.MethodHead && (r.URL.Path == "/clips/a/1/a.jpg" || r.URL.Path == "/clips/b/1/b.jpg"):
+			requestsMu.Lock()
+			requests[r.Method+" "+r.URL.Path]++
+			requestsMu.Unlock()
+			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodHead && strings.TrimSuffix(r.URL.Path, "/") == "/clips":
+			requestsMu.Lock()
+			requests["HEAD /clips"]++
+			requestsMu.Unlock()
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPut && (r.URL.Path == "/clips/a/1/a.jpg" || r.URL.Path == "/clips/b/1/b.jpg"):
+			body, err := io.ReadAll(r.Body)
+			userID := strings.Split(r.URL.Path, "/")[2]
+			if err != nil || string(body) != "/media/"+userID+".jpg" || r.Header.Get("Content-Type") != "image/jpeg" {
+				http.Error(w, "unexpected upload body or content type", http.StatusBadRequest)
+				return
+			}
+			requestsMu.Lock()
+			requests[r.Method+" "+r.URL.Path]++
+			requestsMu.Unlock()
 			w.WriteHeader(http.StatusOK)
 		case r.URL.Path == "/webhook":
 			var body struct {
@@ -153,5 +175,18 @@ func TestUserPipelinesAndAlerts(t *testing.T) {
 		}
 	default:
 		t.Fatal("missing Alice alert")
+	}
+	requestsMu.Lock()
+	defer requestsMu.Unlock()
+	for request, want := range map[string]int{
+		"HEAD /clips/a/1/a.jpg": 1,
+		"HEAD /clips/b/1/b.jpg": 1,
+		"HEAD /clips":           2,
+		"PUT /clips/a/1/a.jpg":  1,
+		"PUT /clips/b/1/b.jpg":  1,
+	} {
+		if got := requests[request]; got != want {
+			t.Errorf("%s: got %d requests, want %d", request, got, want)
+		}
 	}
 }
