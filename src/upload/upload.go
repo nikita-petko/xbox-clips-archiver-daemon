@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -168,6 +169,38 @@ type Report struct {
 	VerificationEnabled bool
 }
 
+// Session tracks object keys across concurrent upload reports in one pass.
+type Session struct {
+	mu       sync.Mutex
+	uploaded map[*models.Media]struct{}
+	keys     map[string]struct{}
+}
+
+func (s *Session) reserve(media Media) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.uploaded == nil {
+		s.uploaded = make(map[*models.Media]struct{})
+		s.keys = make(map[string]struct{})
+	}
+	if _, exists := s.uploaded[media.Media]; exists {
+		return fmt.Errorf("media %q occurs more than once", media.Media.Id)
+	}
+	if _, exists := s.keys[media.Key]; exists {
+		return fmt.Errorf("S3 object key %q occurs more than once", media.Key)
+	}
+	s.uploaded[media.Media] = struct{}{}
+	s.keys[media.Key] = struct{}{}
+	return nil
+}
+
+func (s *Session) release(media Media) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.uploaded, media.Media)
+	delete(s.keys, media.Key)
+}
+
 func alertURL(ctx context.Context, key string) (string, error) {
 	base, err := flags.ParseAlertURLBase()
 	if err != nil {
@@ -198,32 +231,34 @@ func UploadGroupedMedia(ctx context.Context, grouped dl.UserGroupedMedia) (map[*
 // UploadGroupedMediaReport uploads media and reports all completed uploads,
 // even if a subsequent upload or integrity check fails.
 func UploadGroupedMediaReport(ctx context.Context, grouped dl.UserGroupedMedia) (report Report, err error) {
+	return new(Session).UploadGroupedMediaReport(ctx, grouped)
+}
+
+// UploadGroupedMediaReport uploads media using this session's shared duplicate checks.
+func (s *Session) UploadGroupedMediaReport(ctx context.Context, grouped dl.UserGroupedMedia) (report Report, err error) {
 	started := time.Now()
 	defer func() { report.Duration = time.Since(started) }()
 	report.VerificationEnabled = *flags.ShouldVerifyUploadIntegrity
-	uploaded := make(map[*models.Media]struct{})
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
-	keys := make(map[string]struct{})
 	for userID, items := range grouped {
 		selected, err := CollectMedia(ctx, userID, items)
 		if err != nil {
 			return report, err
 		}
 		for _, media := range selected {
-			if _, exists := uploaded[media.Media]; exists {
-				return report, fmt.Errorf("media %q occurs more than once", media.Media.Id)
-			}
-			if _, exists := keys[media.Key]; exists {
-				return report, fmt.Errorf("S3 object key %q occurs more than once", media.Key)
+			if err := s.reserve(media); err != nil {
+				return report, err
 			}
 			info, err := os.Stat(media.File.GetFilePath())
 			if err != nil {
+				s.release(media)
 				return report, fmt.Errorf("stat cached file for S3 object %q: %w", media.Key, err)
 			}
 			url, err := alertURL(ctx, media.Key)
 			if err != nil {
+				s.release(media)
 				return report, fmt.Errorf("construct HTTPS URL for S3 object %q: %w", media.Key, err)
 			}
 			uri, err := UploadMedia(ctx, media)
@@ -232,8 +267,8 @@ func UploadGroupedMediaReport(ctx context.Context, grouped dl.UserGroupedMedia) 
 					Media: media.Media, URI: uri, URL: url, Bytes: info.Size(),
 					Verified: report.VerificationEnabled && err == nil,
 				})
-				uploaded[media.Media] = struct{}{}
-				keys[media.Key] = struct{}{}
+			} else {
+				s.release(media)
 			}
 			if err != nil {
 				return report, err

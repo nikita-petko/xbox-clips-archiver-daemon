@@ -149,6 +149,57 @@ func TestUploadGroupedMedia(t *testing.T) {
 	}
 	mu.Unlock()
 
+	t.Run("shared session rejects cross-user key collisions", func(t *testing.T) {
+		*flags.UploaderGroupByUserMode = "none"
+		defer func() { *flags.UploaderGroupByUserMode = "id" }()
+		session := new(Session)
+		first, err := session.UploadGroupedMediaReport(context.Background(), dl.UserGroupedMedia{"first": {newItem}})
+		if err != nil || len(first.Files) != 1 {
+			t.Fatalf("first report = %+v, error = %v", first, err)
+		}
+		copy := *newItem
+		media := *newItem.Media
+		copy.Media = &media
+		second, err := session.UploadGroupedMediaReport(context.Background(), dl.UserGroupedMedia{"second": {&copy}})
+		if err == nil || !strings.Contains(err.Error(), "occurs more than once") || len(second.Files) != 0 {
+			t.Fatalf("second report = %+v, error = %v", second, err)
+		}
+	})
+
+	t.Run("concurrent cross-user key collisions", func(t *testing.T) {
+		*flags.UploaderGroupByUserMode = "none"
+		defer func() { *flags.UploaderGroupByUserMode = "id" }()
+		session := new(Session)
+		start := make(chan struct{})
+		results := make(chan error, 2)
+		for _, userID := range []string{"first", "second"} {
+			copy := *newItem
+			media := *newItem.Media
+			copy.Media = &media
+			go func() {
+				<-start
+				_, err := session.UploadGroupedMediaReport(context.Background(), dl.UserGroupedMedia{userID: {&copy}})
+				results <- err
+			}()
+		}
+		close(start)
+		var successes, collisions int
+		for range 2 {
+			err := <-results
+			switch {
+			case err == nil:
+				successes++
+			case strings.Contains(err.Error(), "occurs more than once"):
+				collisions++
+			default:
+				t.Errorf("unexpected error: %v", err)
+			}
+		}
+		if successes != 1 || collisions != 1 {
+			t.Errorf("got %d successes and %d collisions", successes, collisions)
+		}
+	})
+
 	t.Run("alert URL override", func(t *testing.T) {
 		defer func() {
 			*flags.AlertURLBase = ""

@@ -87,21 +87,28 @@ func downloadAllMediaForUser(user users.User, mediaList []*models.Media) ([]*Use
 // UserGroupedMedia represents a mapping from user ID to a list of media associated with that user.
 type UserGroupedMedia map[string][]*UserMediaCacheGuard
 
+// DownloadUserMedia fetches and downloads the media belonging to one user.
+func DownloadUserMedia(apiKey string, user users.User) ([]*UserMediaCacheGuard, error) {
+	media, err := dvr.GetDVRMedia(apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("get DVR media: %w", err)
+	}
+	guards, err := downloadAllMediaForUser(user, media)
+	if err != nil {
+		return nil, fmt.Errorf("download media: %w", err)
+	}
+	return guards, nil
+}
+
 // DownloadAllUserMedias downloads all media for all users in the provided map.
 // It iterates over each user and attempts to download all media associated with them.
 //
-// Returns grouped media for each user, combined title ID to title name mapping, and any errors encountered during the download process.
+// Errors for individual users are logged and skipped.
 func DownloadAllUserMedias(usersMap users.ApiKeyToUserMap) (UserGroupedMedia, error) {
 	groupedMediaForAllUsers := make(UserGroupedMedia)
 
 	for apiKey, user := range usersMap {
-		groupedMedia, err := dvr.GetDVRMedia(apiKey)
-		if err != nil {
-			glog.Errorf("failed to get grouped DVR media for user %q: %v", user.UserID, err)
-			continue
-		}
-
-		cacheGuards, err := downloadAllMediaForUser(user, groupedMedia)
+		cacheGuards, err := DownloadUserMedia(apiKey, user)
 		if err != nil {
 			glog.Errorf("failed to download media for user %q: %v", user.UserID, err)
 			continue

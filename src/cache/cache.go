@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/flags"
@@ -13,6 +14,7 @@ const downloadCacheMaxAge = 30 // Max age in days for downloaded media entries
 const downloadCacheFileName = "download_cache.json"
 
 var gDownloadedMedia map[string]string // Maps {userId}:{titleId}:{mediaId} to the date they were downloaded. On setup, expired media entries are removed.
+var downloadedMediaMu sync.Mutex
 
 func initCache() {
 	gDownloadedMedia = make(map[string]string)
@@ -36,6 +38,12 @@ func initCache() {
 }
 
 func saveCache() {
+	downloadedMediaMu.Lock()
+	defer downloadedMediaMu.Unlock()
+	saveCacheLocked()
+}
+
+func saveCacheLocked() {
 	cacheFileName := path.Join(*flags.CachePath, downloadCacheFileName)
 
 	data, err := json.Marshal(gDownloadedMedia)
@@ -59,6 +67,8 @@ func isExpired(downloadDate string) bool {
 
 // isCached checks if a media ID is present in the download cache and not expired.
 func isCached(cacheKey string) bool {
+	downloadedMediaMu.Lock()
+	defer downloadedMediaMu.Unlock()
 	downloadDate, exists := gDownloadedMedia[cacheKey]
 	if !exists {
 		return false
@@ -66,7 +76,7 @@ func isCached(cacheKey string) bool {
 
 	if isExpired(downloadDate) {
 		delete(gDownloadedMedia, cacheKey)
-		saveCache()
+		saveCacheLocked()
 		return false
 	}
 
@@ -75,6 +85,8 @@ func isCached(cacheKey string) bool {
 
 // addToCache adds a media ID to the download cache with the current date.
 func addToCache(cacheKey string) {
+	downloadedMediaMu.Lock()
+	defer downloadedMediaMu.Unlock()
 	gDownloadedMedia[cacheKey] = time.Now().Format("2006-01-02")
-	saveCache()
+	saveCacheLocked()
 }

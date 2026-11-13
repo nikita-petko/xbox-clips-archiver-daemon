@@ -25,7 +25,9 @@ func SendMail(ctx context.Context, subject string, body string) {
 
 	message.AddPersonalizations(personalization)
 
-	response, err := gSendGridClient.SendWithContext(ctx, message)
+	// SendWithContext mutates its client's request body, so use a per-call copy.
+	client := *gSendGridClient
+	response, err := client.SendWithContext(ctx, message)
 	if err != nil {
 		if response != nil {
 			// If it's an access denied error, then just skip it

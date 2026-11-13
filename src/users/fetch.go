@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/cache"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbl"
@@ -68,13 +69,39 @@ func getUserProfile(apiKey string) (string, string, error) {
 // fetchUsersByUserIds retrieves a map of API keys to their corresponding Xbox users
 func fetchUsersByUserIds(apiKeys []string) (ApiKeyToUserMap, error) {
 	result := make(ApiKeyToUserMap)
-
-	for _, apiKey := range apiKeys {
-		userID, gamertag, err := getUserProfile(apiKey)
-		if err != nil {
-			return nil, err
+	type profileResult struct {
+		apiKey string
+		user   User
+		err    error
+	}
+	results := make(chan profileResult, len(apiKeys))
+	seen := make(map[string]bool)
+	count := 0
+	for index, apiKey := range apiKeys {
+		if seen[apiKey] {
+			continue
 		}
-		result[apiKey] = User{UserID: userID, Gamertag: gamertag}
+		seen[apiKey] = true
+		count++
+		go func() {
+			userID, gamertag, err := getUserProfile(apiKey)
+			if err != nil {
+				err = fmt.Errorf("fetch profile for API key #%d: %w", index+1, err)
+			}
+			results <- profileResult{apiKey: apiKey, user: User{UserID: userID, Gamertag: gamertag}, err: err}
+		}()
+	}
+	var errs []error
+	for range count {
+		profile := <-results
+		if profile.err != nil {
+			errs = append(errs, profile.err)
+		} else {
+			result[profile.apiKey] = profile.user
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
