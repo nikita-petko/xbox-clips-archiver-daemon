@@ -12,7 +12,7 @@ import (
 const downloadCacheMaxAge = 30 // Max age in days for downloaded media entries
 const downloadCacheFileName = "download_cache.json"
 
-var gDownloadedMedia map[string]string // Maps media IDs to the date they were downloaded. On setup, expired media entries are removed.
+var gDownloadedMedia map[string]string // Maps {userId}:{titleId}:{mediaId} to the date they were downloaded. On setup, expired media entries are removed.
 
 func initCache() {
 	gDownloadedMedia = make(map[string]string)
@@ -26,9 +26,9 @@ func initCache() {
 		}
 
 		// Remove expired media entries from the cache
-		for mediaID, downloadDate := range gDownloadedMedia {
+		for cacheKey, downloadDate := range gDownloadedMedia {
 			if isExpired(downloadDate) {
-				delete(gDownloadedMedia, mediaID)
+				delete(gDownloadedMedia, cacheKey)
 				saveCache()
 			}
 		}
@@ -57,15 +57,21 @@ func isExpired(downloadDate string) bool {
 	return time.Now().After(expirationDate)
 }
 
-// IsCached checks if a media ID is present in the download cache and not expired.
-func IsCached(mediaID string) bool {
-	downloadDate, exists := gDownloadedMedia[mediaID]
+func deriveCacheKey(userID, titleID, mediaID string) string {
+	return userID + ":" + titleID + ":" + mediaID
+}
+
+// isCached checks if a media ID is present in the download cache and not expired.
+func isCached(userID, titleID, mediaID string) bool {
+	cacheKey := deriveCacheKey(userID, titleID, mediaID)
+
+	downloadDate, exists := gDownloadedMedia[cacheKey]
 	if !exists {
 		return false
 	}
 
 	if isExpired(downloadDate) {
-		delete(gDownloadedMedia, mediaID)
+		delete(gDownloadedMedia, cacheKey)
 		saveCache()
 		return false
 	}
@@ -73,8 +79,8 @@ func IsCached(mediaID string) bool {
 	return true
 }
 
-// AddToCache adds a media ID to the download cache with the current date.
-func AddToCache(mediaID string) {
-	gDownloadedMedia[mediaID] = time.Now().Format("2006-01-02")
+// addToCache adds a media ID to the download cache with the current date.
+func addToCache(userID, titleID, mediaID string) {
+	gDownloadedMedia[deriveCacheKey(userID, titleID, mediaID)] = time.Now().Format("2006-01-02")
 	saveCache()
 }

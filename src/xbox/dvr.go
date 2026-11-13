@@ -15,13 +15,15 @@ func getDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
 	screenshots := make([]*models.Screenshot, 0)
 
 	for {
-		httpResponse, newContinuationToken, err := makeApiCall(fmt.Sprintf("%s?continuationToken=%s", SCREENSHOTS_ENDPOINT, continuationToken), apiKey)
+		httpResponse, newContinuationToken, err := makeApiCall(fmt.Sprintf("%s?continuationToken=%s", SCREENSHOTS_ENDPOINT, continuationToken), apiKey, true)
 		if err != nil {
 			return nil, err
 		}
 
 		continuationToken = newContinuationToken
 		if httpResponse != nil {
+			defer httpResponse.Body.Close()
+
 			data, err := io.ReadAll(httpResponse.Body)
 			if err != nil {
 				return nil, err
@@ -49,13 +51,15 @@ func getDVRGameClips(apiKey string) ([]*models.GameClip, error) {
 	gameClips := make([]*models.GameClip, 0)
 
 	for {
-		httpResponse, newContinuationToken, err := makeApiCall(fmt.Sprintf("%s?continuationToken=%s", GAMECLIPS_ENDPOINT, continuationToken), apiKey)
+		httpResponse, newContinuationToken, err := makeApiCall(fmt.Sprintf("%s?continuationToken=%s", GAMECLIPS_ENDPOINT, continuationToken), apiKey, true)
 		if err != nil {
 			return nil, err
 		}
 
 		continuationToken = newContinuationToken
 		if httpResponse != nil {
+			defer httpResponse.Body.Close()
+
 			data, err := io.ReadAll(httpResponse.Body)
 			if err != nil {
 				return nil, err

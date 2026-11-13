@@ -10,7 +10,7 @@ import (
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/http"
 )
 
-func makeApiCall(endpoint string, apiKey string) (response *gohttp.Response, ct string, err error) {
+func makeApiCall(endpoint string, apiKey string, isPaged bool) (response *gohttp.Response, ct string, err error) {
 	uri, err := url.Parse(XBL_API_URL + endpoint)
 	if err != nil {
 		return nil, "", err
@@ -28,7 +28,7 @@ func makeApiCall(endpoint string, apiKey string) (response *gohttp.Response, ct 
 	}
 
 	// Read response as a paged response if necessary
-	if response.Header.Get("Content-Type") == "application/json" {
+	if isPaged {
 		// Read as dictionary, continuation token lies at:
 		// response_body.content.pagingInfo.continuationToken
 

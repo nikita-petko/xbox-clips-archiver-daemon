@@ -41,6 +41,9 @@ func Setup() {
 	}
 
 	initCache()
+	if err := initUserCache(); err != nil {
+		glog.Fatalf("Failed to load user cache: %v", err)
+	}
 
 	glog.Infof("Cache setup complete. Cache directory: %s", *flags.CachePath)
 }
