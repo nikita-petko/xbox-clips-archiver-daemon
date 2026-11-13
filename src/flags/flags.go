@@ -29,6 +29,18 @@ var (
 	// XblApiKeys is a comma-separated list of Xbox API keys. This is required. (environment variable: XBL_API_KEYS)
 	XblApiKeys = flag.String("xbl-api-keys", "", "A comma-separated list of Xbox API keys. This is required. (environment variable: XBL_API_KEYS)")
 
+	// S3Bucket is the name of the S3 bucket to use for storing media. This is required. (environment variable: S3_BUCKET)
+	S3Bucket = flag.String("s3-bucket", "", "The name of the S3 bucket to use for storing media. This is required. (environment variable: S3_BUCKET)")
+
+	// S3Region is the AWS region where the S3 bucket is located. Defaults to us-east-1. This is required. (environment variable: S3_REGION)
+	S3Region = flag.String("s3-region", "us-east-1", "The AWS region where the S3 bucket is located. Defaults to us-east-1. This is required. (environment variable: S3_REGION)")
+
+	// S3AccessKey is the AWS access key used for S3. This is optional. (environment variable: AWS_ACCESS_KEY)
+	S3AccessKey = flag.String("s3-access-key", "", "The AWS access key used for S3. This is optional. (environment variable: AWS_ACCESS_KEY)")
+
+	// S3SecretAccessKey is the AWS secret access key used for S3. This is optional. (environment variable: AWS_SECRET_ACCESS_KEY)
+	S3SecretAccessKey = flag.String("s3-secret-access-key", "", "The AWS secret access key used for S3. This is optional. (environment variable: AWS_SECRET_ACCESS_KEY)")
+
 	//// Alerting
 
 	// SendGridApiKey is the SendGrid API key. This is optional. (environment variable: SENDGRID_API_KEY)

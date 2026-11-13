@@ -7,6 +7,10 @@ func applyEnvironmentVariableFlags() {
 	getEnvironmentVariableOrFlag("CLEAR_CACHE", ClearCache)
 	getEnvironmentVariableOrFlag("SHOULD_LOCK_CACHE", ShouldLockCache)
 	getEnvironmentVariableOrFlag("XBL_API_KEYS", XblApiKeys)
+	getEnvironmentVariableOrFlag("S3_BUCKET", S3Bucket)
+	getEnvironmentVariableOrFlag("S3_REGION", S3Region)
+	getEnvironmentVariableOrFlag("S3_ACCESS_KEY", S3AccessKey)
+	getEnvironmentVariableOrFlag("S3_SECRET_ACCESS_KEY", S3SecretAccessKey)
 
 	getEnvironmentVariableOrFlag("SEND_GRID_API_KEY", SendGridApiKey)
 	getEnvironmentVariableOrFlag("SEND_GRID_FROM", SendGridFrom)

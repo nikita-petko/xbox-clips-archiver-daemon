@@ -136,22 +136,23 @@ func getDVRMedia(apiKey string) ([]*models.Media, error) {
 	return media, nil
 }
 
-// GetGroupedDVRMedia retrieves DVR media grouped by game ID for the authenticated user using the provided API key.
+// TitleIdToTitleNameMap represents a mapping from game ID to the corresponding game title.
+type TitleIdToTitleNameMap map[string]string
+
+// GetDVRMedia retrieves DVR media for the authenticated user using the provided API key.
 //
 // Also returns a game ID to game title map.
-func GetGroupedDVRMedia(apiKey string) (map[string][]*models.Media, map[string]string, error) {
+func GetDVRMedia(apiKey string) ([]*models.Media, TitleIdToTitleNameMap, error) {
 	media, err := getDVRMedia(apiKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	groupedMedia := make(map[string][]*models.Media)
-	gameTitles := make(map[string]string)
+	gameTitles := make(TitleIdToTitleNameMap)
 	for _, m := range media {
 		gameID := fmt.Sprintf("%d", m.TitleId)
-		groupedMedia[gameID] = append(groupedMedia[gameID], m)
 		gameTitles[gameID] = m.TitleName
 	}
 
-	return groupedMedia, gameTitles, nil
+	return media, gameTitles, nil
 }
