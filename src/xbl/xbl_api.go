@@ -3,7 +3,6 @@ package xbl
 import (
 	"encoding/json"
 	"io"
-	gohttp "net/http"
 	"net/url"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -11,7 +10,7 @@ import (
 )
 
 // MakeApiCall performs an HTTP GET request to the specified Xbox Live API endpoint using the provided API key.
-func MakeApiCall(endpoint string, apiKey string, isPaged bool) (response *gohttp.Response, continuationToken string, err error) {
+func MakeApiCall(endpoint string, apiKey string, isPaged bool) (data []byte, continuationToken string, err error) {
 	uri, err := url.Parse(XBL_API_URL + endpoint)
 	if err != nil {
 		return nil, "", err
@@ -23,35 +22,35 @@ func MakeApiCall(endpoint string, apiKey string, isPaged bool) (response *gohttp
 	}
 	request.Header.Set(XBL_API_AUTH_HEADER, apiKey)
 
-	response, err = http.Client().Do(request)
+	response, err := http.Client().Do(request)
 	if err != nil {
 		return nil, "", err
+	}
+	defer response.Body.Close()
+
+	data, err = io.ReadAll(response.Body)
+	if err != nil {
+		return []byte{}, "", err
 	}
 
 	// Read response as a paged response if necessary
 	if isPaged {
 		// Read as dictionary, continuation token lies at:
 		// response_body.content.pagingInfo.continuationToken
-
-		data, err := io.ReadAll(response.Body)
-		if err != nil {
-			return response, "", err
-		}
-
 		var jsonResponse map[string]interface{}
 		err = json.Unmarshal(data, &jsonResponse)
 		if err != nil {
-			return response, "", err
+			return data, "", err
 		}
 
 		if content, ok := jsonResponse["content"].(map[string]interface{}); ok {
 			if pagingInfo, ok := content["pagingInfo"].(map[string]interface{}); ok {
 				if continuationToken, ok := pagingInfo["continuationToken"].(string); ok {
-					return response, continuationToken, nil
+					return data, continuationToken, nil
 				}
 			}
 		}
 	}
 
-	return response, "", nil
+	return data, "", nil
 }

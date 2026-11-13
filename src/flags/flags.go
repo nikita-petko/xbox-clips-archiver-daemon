@@ -41,7 +41,25 @@ var (
 	// S3SecretAccessKey is the AWS secret access key used for S3. This is optional. (environment variable: S3_SECRET_ACCESS_KEY)
 	S3SecretAccessKey = flag.String("s3-secret-access-key", "", "The AWS secret access key used for S3. This is optional. (environment variable: S3_SECRET_ACCESS_KEY)")
 
+	// S3PathPrefix is the prefix to use for objects stored in the S3 bucket. This is optional. (environment variable: S3_PATH_PREFIX)
+	S3PathPrefix = flag.String("s3-path-prefix", "", "The prefix to use for objects stored in the S3 bucket. This is optional. (environment variable: S3_PATH_PREFIX)")
+
+	// UploaderGroupByUserMode selects how uploaded media is grouped by user.
+	UploaderGroupByUserMode = flag.String("uploader-group-by-user-mode", "none", "Group uploads by user: none, id, or gamertag. (environment variable: UPLOADER_GROUP_BY_USER_MODE)")
+
+	// UploaderGroupByTitleMode selects how uploaded media is grouped by title.
+	UploaderGroupByTitleMode = flag.String("uploader-group-by-title-mode", "name", "Group uploads by title: none, id, or name. (environment variable: UPLOADER_GROUP_BY_TITLE_MODE)")
+
+	// UploadMediaFileNameMode selects how uploaded media files are named.
+	UploadMediaFileNameMode = flag.String("upload-media-file-name-mode", "captured", "Name media files by captured date or id: captured or id. (environment variable: UPLOAD_MEDIA_FILE_NAME_MODE)")
+
+	// ShouldVerifyUploadIntegrity controls checksum verification after each upload.
+	ShouldVerifyUploadIntegrity = flag.Bool("should-verify-upload-integrity", true, "Verify S3 checksums after uploading. (environment variable: SHOULD_VERIFY_UPLOAD_INTEGRITY)")
+
 	//// Alerting
+
+	// AlertURLBase overrides the S3 bucket URL in upload alerts.
+	AlertURLBase = flag.String("alert-url-base", "", "HTTPS base URL for uploaded object links in alerts. (environment variable: ALERT_URL_BASE)")
 
 	// SendGridApiKey is the SendGrid API key. This is optional. (environment variable: SENDGRID_API_KEY)
 	SendGridApiKey = flag.String("sendgrid-api-key", "", "The SendGrid API key. This is optional. (environment variable: SENDGRID_API_KEY)")

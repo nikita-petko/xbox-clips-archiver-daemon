@@ -47,7 +47,7 @@ func CacheGuardedHttpGet(userId, titleId, mediaId, url string) (*CacheGuard, err
 
 	glog.V(10000).Infof("Resolved cache path for User ID, Title ID, and Media ID: %s@%s@%s, resolved path: %s", userId, titleId, mediaId, resolvedPath)
 
-	if isCached(userId, titleId, mediaId) {
+	if isCached(resolvedPath) {
 		return &CacheGuard{filePath: resolvedPath}, ErrExistsInCache
 	}
 
@@ -74,7 +74,7 @@ func CacheGuardedHttpGet(userId, titleId, mediaId, url string) (*CacheGuard, err
 		return nil, err
 	}
 
-	addToCache(userId, titleId, mediaId)
+	addToCache(resolvedPath)
 
 	return &CacheGuard{filePath: resolvedPath}, nil
 }

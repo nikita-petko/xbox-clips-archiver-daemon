@@ -13,6 +13,7 @@ import (
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/flags"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/http"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/s3"
+	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/users"
 )
 
 var applicationName string
@@ -36,8 +37,12 @@ func main() {
 	alerting.Setup()
 	cache.Setup()
 	s3.Setup()
+	users.Setup()
 
 	if *flags.Pulse {
+		defer cache.Close()
+		defer glog.Flush()
+
 		err := daemon.DoWork()
 		if err != nil {
 			glog.Fatalf("Error during work: %v", err)

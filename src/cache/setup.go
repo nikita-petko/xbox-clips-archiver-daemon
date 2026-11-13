@@ -50,10 +50,14 @@ func Setup() {
 
 // Close releases the lock on the cache directory and performs any necessary cleanup.
 func Close() {
+	glog.Info("Closing cache...")
+
 	if lock != nil {
 		err := lock.Unlock()
 		if err != nil {
 			glog.Errorf("Failed to release lock on cache directory: %v", err)
 		}
 	}
+
+	saveCache()
 }

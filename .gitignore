@@ -367,3 +367,4 @@ FodyWeavers.xsd
 .cache
 .output
 .old
+.env

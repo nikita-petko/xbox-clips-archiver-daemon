@@ -8,7 +8,7 @@ type GameClip struct {
 	// Used within the cache to ensure that
 	// each game clip is uniquely identified and
 	// isn't duplicated within the cache.
-	GameClipId string `json:"game clipId"`
+	GameClipId string `json:"gameClipId"`
 
 	// DateRecorded is the timestamp when the game clip was taken.
 	//
@@ -26,7 +26,7 @@ type GameClip struct {
 	TitleName string `json:"titleName"`
 
 	// GameClipUris is a list of download URIs for the game clip.
-	GameClipUris []*DownloadURI `json:"game clipUris"`
+	GameClipUris []*DownloadURI `json:"gameClipUris"`
 }
 
 // GameClipContent represents the actual content of a game clip response returned by the Xbox API.

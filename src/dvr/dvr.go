@@ -3,9 +3,9 @@ package dvr
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
+	"github.com/golang/glog"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbl"
 	"github.vmminfra.dev/mfdlabs/xbox-clips-archiver-daemon/xbl/models"
 )
@@ -13,26 +13,30 @@ import (
 const screenshotsEndpoint = "/v2/dvr/screenshots"
 const gameclipsEndpoint = "/v2/dvr/gameclips"
 
+func parseCaptureTime(value string) (*time.Time, error) {
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		parsed, err = time.Parse("2006-01-02 15:04:05Z", value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid capture timestamp %q: %w", value, err)
+		}
+	}
+	return &parsed, nil
+}
+
 // getDVRScreenshots retrieves a list of DVR screenshots for the authenticated user using the provided API key.
 func getDVRScreenshots(apiKey string) ([]*models.Screenshot, error) {
 	continuationToken := ""
 	screenshots := make([]*models.Screenshot, 0)
 
 	for {
-		httpResponse, newContinuationToken, err := xbl.MakeApiCall(fmt.Sprintf("%s?continuationToken=%s", screenshotsEndpoint, continuationToken), apiKey, true)
+		data, newContinuationToken, err := xbl.MakeApiCall(fmt.Sprintf("%s?continuationToken=%s", screenshotsEndpoint, continuationToken), apiKey, true)
 		if err != nil {
 			return nil, err
 		}
 
 		continuationToken = newContinuationToken
-		if httpResponse != nil {
-			defer httpResponse.Body.Close()
-
-			data, err := io.ReadAll(httpResponse.Body)
-			if err != nil {
-				return nil, err
-			}
-
+		if len(data) > 0 {
 			var response models.ScreenshotResponse
 			err = json.Unmarshal(data, &response)
 			if err != nil {
@@ -55,20 +59,13 @@ func getDVRGameClips(apiKey string) ([]*models.GameClip, error) {
 	gameClips := make([]*models.GameClip, 0)
 
 	for {
-		httpResponse, newContinuationToken, err := xbl.MakeApiCall(fmt.Sprintf("%s?continuationToken=%s", gameclipsEndpoint, continuationToken), apiKey, true)
+		data, newContinuationToken, err := xbl.MakeApiCall(fmt.Sprintf("%s?continuationToken=%s", gameclipsEndpoint, continuationToken), apiKey, true)
 		if err != nil {
 			return nil, err
 		}
 
 		continuationToken = newContinuationToken
-		if httpResponse != nil {
-			defer httpResponse.Body.Close()
-
-			data, err := io.ReadAll(httpResponse.Body)
-			if err != nil {
-				return nil, err
-			}
-
+		if len(data) > 0 {
 			var response models.GameClipResponse
 			err = json.Unmarshal(data, &response)
 			if err != nil {
@@ -85,8 +82,8 @@ func getDVRGameClips(apiKey string) ([]*models.GameClip, error) {
 	return gameClips, nil
 }
 
-// getDVRMedia retrieves a combined list of DVR media (screenshots and game clips) for the authenticated user using the provided API key.
-func getDVRMedia(apiKey string) ([]*models.Media, error) {
+// GetDVRMedia retrieves a combined list of DVR media (screenshots and game clips) for the authenticated user using the provided API key.
+func GetDVRMedia(apiKey string) ([]*models.Media, error) {
 	screenshots, err := getDVRScreenshots(apiKey)
 	if err != nil {
 		return nil, err
@@ -101,13 +98,16 @@ func getDVRMedia(apiKey string) ([]*models.Media, error) {
 	for _, s := range screenshots {
 		taken := &time.Time{}
 		if s.DateTaken != "" {
-			parsedTime, err := time.Parse(time.RFC3339, s.DateTaken)
+			parsedTime, err := parseCaptureTime(s.DateTaken)
 			if err == nil {
-				taken = &parsedTime
+				taken = parsedTime
+			} else {
+				glog.Warningf("Invalid capture timestamp for screenshot %q: %v", s.ScreenshotId, err)
 			}
 		}
 
 		media = append(media, &models.Media{
+			Category:  models.MediaCategoryScreenshot,
 			Id:        s.ScreenshotId,
 			TitleId:   s.TitleId,
 			TitleName: s.TitleName,
@@ -118,13 +118,16 @@ func getDVRMedia(apiKey string) ([]*models.Media, error) {
 	for _, g := range gameClips {
 		recorded := &time.Time{}
 		if g.DateRecorded != "" {
-			parsedTime, err := time.Parse(time.RFC3339, g.DateRecorded)
+			parsedTime, err := parseCaptureTime(g.DateRecorded)
 			if err == nil {
-				recorded = &parsedTime
+				recorded = parsedTime
+			} else {
+				glog.Warningf("Invalid capture timestamp for game clip %q: %v", g.GameClipId, err)
 			}
 		}
 
 		media = append(media, &models.Media{
+			Category:  models.MediaCategoryGameClip,
 			Id:        g.GameClipId,
 			TitleId:   g.TitleId,
 			TitleName: g.TitleName,
@@ -134,25 +137,4 @@ func getDVRMedia(apiKey string) ([]*models.Media, error) {
 	}
 
 	return media, nil
-}
-
-// TitleIdToTitleNameMap represents a mapping from game ID to the corresponding game title.
-type TitleIdToTitleNameMap map[string]string
-
-// GetDVRMedia retrieves DVR media for the authenticated user using the provided API key.
-//
-// Also returns a game ID to game title map.
-func GetDVRMedia(apiKey string) ([]*models.Media, TitleIdToTitleNameMap, error) {
-	media, err := getDVRMedia(apiKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	gameTitles := make(TitleIdToTitleNameMap)
-	for _, m := range media {
-		gameID := fmt.Sprintf("%d", m.TitleId)
-		gameTitles[gameID] = m.TitleName
-	}
-
-	return media, gameTitles, nil
 }

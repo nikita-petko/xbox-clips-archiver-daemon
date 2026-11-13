@@ -57,14 +57,8 @@ func isExpired(downloadDate string) bool {
 	return time.Now().After(expirationDate)
 }
 
-func deriveCacheKey(userID, titleID, mediaID string) string {
-	return userID + ":" + titleID + ":" + mediaID
-}
-
 // isCached checks if a media ID is present in the download cache and not expired.
-func isCached(userID, titleID, mediaID string) bool {
-	cacheKey := deriveCacheKey(userID, titleID, mediaID)
-
+func isCached(cacheKey string) bool {
 	downloadDate, exists := gDownloadedMedia[cacheKey]
 	if !exists {
 		return false
@@ -80,7 +74,7 @@ func isCached(userID, titleID, mediaID string) bool {
 }
 
 // addToCache adds a media ID to the download cache with the current date.
-func addToCache(userID, titleID, mediaID string) {
-	gDownloadedMedia[deriveCacheKey(userID, titleID, mediaID)] = time.Now().Format("2006-01-02")
+func addToCache(cacheKey string) {
+	gDownloadedMedia[cacheKey] = time.Now().Format("2006-01-02")
 	saveCache()
 }

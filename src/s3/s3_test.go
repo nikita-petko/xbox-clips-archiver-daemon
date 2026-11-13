@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -54,11 +55,19 @@ func TestUploadAndExists(t *testing.T) {
 			w.WriteHeader(http.StatusForbidden)
 		case r.Method == http.MethodPut && r.URL.Path == "/clips/folder/video.mp4":
 			body, err := io.ReadAll(r.Body)
-			if err != nil || string(body) != contents {
+			if err != nil || string(body) != contents || r.Header.Get("Content-Type") != "video/mp4" {
 				http.Error(w, "unexpected body", http.StatusBadRequest)
 				return
 			}
 			uploaded.Store(true)
+		case r.Method == http.MethodPut && r.URL.Path == "/clips/picture.JPG":
+			if r.Header.Get("Content-Type") != "image/jpeg" {
+				http.Error(w, "unexpected content type", http.StatusBadRequest)
+			}
+		case r.Method == http.MethodPut && r.URL.Path == "/clips/file.unknownextension":
+			if r.Header.Get("Content-Type") != "application/octet-stream" {
+				http.Error(w, "unexpected content type", http.StatusBadRequest)
+			}
 		case r.Method == http.MethodHead && r.URL.Path == "/clips/folder/video.mp4":
 			if !uploaded.Load() {
 				w.WriteHeader(http.StatusNotFound)
@@ -87,12 +96,31 @@ func TestUploadAndExists(t *testing.T) {
 	*flags.S3Bucket = "other"
 	Setup()
 
+	for _, tc := range []struct{ key, want string }{
+		{"folder/video file.mp4", "https://s3.us-west-2.amazonaws.com/clips/folder/video%20file.mp4"},
+		{"a%2Fb/#?.mp4", "https://s3.us-west-2.amazonaws.com/clips/a%252Fb/%23%3F.mp4"},
+		{"xbox-test/Tom Clancy’s The Division/2026-10-15T07-14-44+0000.mp4", "https://s3.us-west-2.amazonaws.com/clips/xbox-test/Tom%20Clancy%E2%80%99s%20The%20Division/2026-10-15T07-14-44%2B0000.mp4"},
+	} {
+		got, err := HTTPSURL(context.Background(), tc.key)
+		if err != nil || got != tc.want {
+			t.Errorf("HTTPSURL(%q) = %q, %v; want %q", tc.key, got, err, tc.want)
+		}
+	}
+	if _, err := HTTPSURL(context.Background(), ""); err == nil {
+		t.Error("expected empty key URL error")
+	}
+
 	exists, err := Exists(context.Background(), "folder/video.mp4")
 	if err != nil || exists {
 		t.Fatalf("before upload: exists = %v, error = %v", exists, err)
 	}
 	if err := Upload(context.Background(), "folder/video.mp4", guard); err != nil {
 		t.Fatalf("upload: %v", err)
+	}
+	for _, key := range []string{"picture.JPG", "file.unknownextension"} {
+		if err := Upload(context.Background(), key, guard); err != nil {
+			t.Fatalf("upload %s: %v", key, err)
+		}
 	}
 	exists, err = Exists(context.Background(), "folder/video.mp4")
 	if err != nil || !exists {
@@ -128,6 +156,92 @@ func TestUploadAndExists(t *testing.T) {
 	}
 	if err := Upload(context.Background(), "folder/video.mp4", guard); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("expected missing file error, got %v", err)
+	}
+}
+
+func TestHTTPSObjectLinksMatchUploadedKey(t *testing.T) {
+	resetSetup(t)
+	oldCachePath := *flags.CachePath
+	*flags.CachePath = t.TempDir()
+	t.Cleanup(func() { *flags.CachePath = oldCachePath })
+	cache.Setup()
+	t.Cleanup(cache.Close)
+
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "clip data")
+	}))
+	defer source.Close()
+	guard, err := cache.CacheGuardedHttpGet("user", "title", "media", source.URL+"/video.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const key = "xbox-test/Tom Clancy’s The Division/2026-10-15T07-14-44+0000.mp4"
+	var storedKey, storedBody string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		decoded, err := url.QueryUnescape(strings.TrimPrefix(r.URL.EscapedPath(), "/clips/"))
+		if err != nil {
+			t.Errorf("decode request path: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		switch r.Method {
+		case http.MethodPut:
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("read upload body: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			storedKey, storedBody = decoded, string(body)
+		case http.MethodGet:
+			if decoded != storedKey {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			_, _ = io.WriteString(w, storedBody)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+	t.Setenv("AWS_ENDPOINT_URL_S3", server.URL)
+	*flags.S3Bucket, *flags.S3Region = "clips", "us-east-1"
+	*flags.S3AccessKey, *flags.S3SecretAccessKey = "access", "secret"
+	Setup()
+	if err := Upload(context.Background(), key, guard); err != nil {
+		t.Fatal(err)
+	}
+	if storedKey != key {
+		t.Fatalf("uploaded key = %q, want %q", storedKey, key)
+	}
+	direct, err := HTTPSURL(context.Background(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cdn, err := AppendObjectKey(&url.URL{Scheme: "https", Host: "cdn.example.com", Path: "/clips"}, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, link := range []string{direct, cdn.String()} {
+		parsed, err := url.Parse(link)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed.Scheme, parsed.Host = target.Scheme, target.Host
+		response, err := http.Get(parsed.String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil || response.StatusCode != http.StatusOK || string(body) != "clip data" {
+			t.Errorf("GET %s: status = %d, body = %q, error = %v", link, response.StatusCode, body, err)
+		}
 	}
 }
 

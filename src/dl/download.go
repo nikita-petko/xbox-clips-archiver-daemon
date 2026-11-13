@@ -3,7 +3,6 @@ package dl
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"strconv"
 
 	"github.com/golang/glog"
@@ -27,6 +26,19 @@ func cacheDownloadMedia(userId string, media *models.Media) (*cache.CacheGuard, 
 			continue
 		}
 
+		// Format the size in human readable
+		size := ""
+		if uri.FileSize > 0 {
+			size = fmt.Sprintf("%.2f MB", float64(uri.FileSize)/(1024*1024))
+		}
+
+		glog.Infof(
+			"Downloading media %q for user %q (size: %s)",
+			media.Id,
+			userId,
+			size,
+		)
+
 		return cache.CacheGuardedHttpGet(userId, strconv.Itoa(media.TitleId), media.Id, uri.URI)
 	}
 
@@ -34,6 +46,17 @@ func cacheDownloadMedia(userId string, media *models.Media) (*cache.CacheGuard, 
 }
 
 type UserMediaCacheGuard struct {
+	// Gamertag is the Xbox gamertag of the user who owns the media.
+	Gamertag string
+
+	// WasCached indicates whether the media was already present in the cache.
+	// This is used in the upload flow to determine if an already downloaded
+	// file should be re-uploaded because it actually didn't get uploaded.
+	//
+	// This is to fine grain the remote HEAD check to reduce the calls as
+	// non-cached media was most likely not uploaded yet.
+	WasCached bool
+
 	// Media is the media struct associated with the file.
 	Media *models.Media
 
@@ -41,23 +64,20 @@ type UserMediaCacheGuard struct {
 	CachedFile *cache.CacheGuard
 }
 
-func downloadAllMediaForUser(userId string, mediaList []*models.Media) ([]*UserMediaCacheGuard, error) {
+func downloadAllMediaForUser(user users.User, mediaList []*models.Media) ([]*UserMediaCacheGuard, error) {
 	userMediaCacheGuards := make([]*UserMediaCacheGuard, 0)
 
 	for _, media := range mediaList {
-		cacheGuard, err := cacheDownloadMedia(userId, media)
-		if err != nil {
-			if errors.Is(err, cache.ErrExistsInCache) {
-				glog.Warningf("media %q already exists in cache, skipping download", media.Id)
-				continue
-			}
-
+		cacheGuard, err := cacheDownloadMedia(user.UserID, media)
+		if err != nil && !errors.Is(err, cache.ErrExistsInCache) {
 			return nil, err
 		}
 
 		userMediaCacheGuards = append(userMediaCacheGuards, &UserMediaCacheGuard{
+			Gamertag:   user.Gamertag,
 			Media:      media,
 			CachedFile: cacheGuard,
+			WasCached:  errors.Is(err, cache.ErrExistsInCache),
 		})
 	}
 
@@ -71,20 +91,17 @@ type UserGroupedMedia map[string][]*UserMediaCacheGuard
 // It iterates over each user and attempts to download all media associated with them.
 //
 // Returns grouped media for each user, combined title ID to title name mapping, and any errors encountered during the download process.
-func DownloadAllUserMedias(usersMap users.ApiKeyToUserMap) (UserGroupedMedia, dvr.TitleIdToTitleNameMap, error) {
+func DownloadAllUserMedias(usersMap users.ApiKeyToUserMap) (UserGroupedMedia, error) {
 	groupedMediaForAllUsers := make(UserGroupedMedia)
-	combinedTitleIdToTitleNameMap := make(dvr.TitleIdToTitleNameMap)
 
 	for apiKey, user := range usersMap {
-		groupedMedia, titleIdToTitleNameMap, err := dvr.GetDVRMedia(apiKey)
+		groupedMedia, err := dvr.GetDVRMedia(apiKey)
 		if err != nil {
 			glog.Errorf("failed to get grouped DVR media for user %q: %v", user.UserID, err)
 			continue
 		}
 
-		maps.Copy(combinedTitleIdToTitleNameMap, titleIdToTitleNameMap)
-
-		cacheGuards, err := downloadAllMediaForUser(user.UserID, groupedMedia)
+		cacheGuards, err := downloadAllMediaForUser(user, groupedMedia)
 		if err != nil {
 			glog.Errorf("failed to download media for user %q: %v", user.UserID, err)
 			continue
@@ -93,5 +110,5 @@ func DownloadAllUserMedias(usersMap users.ApiKeyToUserMap) (UserGroupedMedia, dv
 		groupedMediaForAllUsers[user.UserID] = cacheGuards
 	}
 
-	return groupedMediaForAllUsers, combinedTitleIdToTitleNameMap, nil
+	return groupedMediaForAllUsers, nil
 }
