@@ -94,16 +94,22 @@ func TestUploadGroupedMedia(t *testing.T) {
 			case "error":
 				w.WriteHeader(http.StatusForbidden)
 			}
+		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/user/42/2024-01-01T23-30-00+0000.mp4":
+			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/user/42/2024-01-01T23-30-02+0000.mp4":
 		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/Game Title/2024-01-01T23-30-00+0000.mp4":
 			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/Player Name/Game Title/2024-01-01T23-30-00+0000.mp4":
 			w.WriteHeader(http.StatusNotFound)
+		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/user/43/2024-01-01T23-30-00+0000.mp4":
+			w.WriteHeader(http.StatusForbidden)
 		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/user/42/2024-01-01T23-30-01+0000.mp4":
 			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodHead && r.URL.Path == "/clips/archive/user/42/new.mp4":
 			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodHead && strings.TrimSuffix(r.URL.Path, "/") == "/clips":
+		case r.Method == http.MethodHead:
+			w.WriteHeader(http.StatusNotFound)
 		case r.Method == http.MethodPut:
 			body, err := io.ReadAll(r.Body)
 			if err != nil || string(body) != "clip data" || r.Header.Get("Content-Type") != "video/mp4" {
@@ -136,7 +142,7 @@ func TestUploadGroupedMedia(t *testing.T) {
 	}
 	mu.Lock()
 	for request, want := range map[string]int{
-		"HEAD /clips/archive/user/42/2024-01-01T23-30-00+0000.mp4": 0,
+		"HEAD /clips/archive/user/42/2024-01-01T23-30-00+0000.mp4": 1,
 		"HEAD /clips/archive/user/42/2024-01-01T23-30-01+0000.mp4": 1,
 		"HEAD /clips/archive/user/42/2024-01-01T23-30-02+0000.mp4": 1,
 		"PUT /clips/archive/user/42/2024-01-01T23-30-00+0000.mp4":  1,
@@ -248,11 +254,11 @@ func TestUploadGroupedMedia(t *testing.T) {
 			verify, verified      bool
 			wantHeads             int
 		}{
-			{"disabled", "", "", false, false, 0},
-			{"valid", "valid", "", true, true, 1},
-			{"mismatch", "mismatch", "checksum mismatch", true, false, 1},
-			{"missing checksum", "", "no supported checksum", true, false, 1},
-			{"head error", "error", "retrieve S3 checksum", true, false, 1},
+			{"disabled", "", "", false, false, 1},
+			{"valid", "valid", "", true, true, 2},
+			{"mismatch", "mismatch", "checksum mismatch", true, false, 2},
+			{"missing checksum", "", "no supported checksum", true, false, 2},
+			{"head error", "error", "retrieve S3 checksum", true, false, 2},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				*flags.ShouldVerifyUploadIntegrity = tc.verify
@@ -414,7 +420,7 @@ func TestUploadGroupedMedia(t *testing.T) {
 			t.Error("expected invalid upload error")
 		}
 		if _, err := CollectMedia(context.Background(), "user", []*dl.UserMediaCacheGuard{{
-			Media: &models.Media{Id: "forbidden", TitleId: 42, CreatedAt: &captured}, CachedFile: existingItem.CachedFile, WasCached: true,
+			Media: &models.Media{Id: "forbidden", TitleId: 43, CreatedAt: &captured}, CachedFile: existingItem.CachedFile, WasCached: true,
 		}}); err == nil {
 			t.Error("expected S3 HEAD error")
 		}

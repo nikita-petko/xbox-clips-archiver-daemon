@@ -90,8 +90,7 @@ func objectKey(userID string, media *dl.UserMediaCacheGuard) (string, error) {
 	return strings.Join(parts, "/"), nil
 }
 
-// CollectMedia selects files for upload. Newly downloaded files are selected
-// without a remote lookup; cached files are selected only if absent from S3.
+// CollectMedia selects files for upload when they are absent from S3.
 // Media without download URIs is skipped. Lookup errors abort the collection.
 // Keys use the configured prefix and grouping modes followed by the configured
 // media filename.
@@ -111,14 +110,12 @@ func CollectMedia(ctx context.Context, userID string, mediaList []*dl.UserMediaC
 		if err != nil {
 			return nil, fmt.Errorf("select media for user %q: %w", userID, err)
 		}
-		if item.WasCached {
-			exists, err := s3.Exists(ctx, key)
-			if err != nil {
-				return nil, fmt.Errorf("check S3 object %q: %w", key, err)
-			}
-			if exists {
-				continue
-			}
+		exists, err := s3.Exists(ctx, key)
+		if err != nil {
+			return nil, fmt.Errorf("check S3 object %q: %w", key, err)
+		}
+		if exists {
+			continue
 		}
 		selected = append(selected, Media{Media: item.Media, File: item.CachedFile, Key: key})
 	}
